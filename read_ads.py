@@ -7,9 +7,16 @@ from PIL import Image
 #TODO: Add in image recognition to recognize images using TensorFlow
 # https://towardsdatascience.com/tensorflow-image-recognition-python-api-e35f7d412a70
 
-# extracts the images from the pdfs and saves as a png
-# change the save_folder on line 10
+#TODO: Figure out how to parse the data correctly and add the data into a Postgres database
+#using Django
+
 def extract_image(pageObj):
+
+    '''
+    Extracts the fb ad image from each of the PDFs and saves it as a .png file. Need to change
+    the save_folder...maybe by where the PDF itself is saved.
+    '''
+
     save_folder = 'C:/users/ehofmann/desktop/'
     xObject = pageObj['/Resources']['/XObject'].getObject()
 
