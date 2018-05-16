@@ -4,7 +4,6 @@ import sys
 import PyPDF2
 from PIL import Image
 import glob
-import minecart
 
 #TODO: Add in image recognition to recognize images using TensorFlow
 # https://towardsdatascience.com/tensorflow-image-recognition-python-api-e35f7d412a70
@@ -74,7 +73,7 @@ def get_all_pdf_files():
 
             # using PyPDF2 below, reads down the first column, then down the next column
             # this makes it hard to split words on
-            def use_PyPDF2():
+            def use_PyPDF2(page_size):
                 pdf_file_obj = open(os.path.join(dirpath, pdf), 'rb')
                 pdf_reader = PyPDF2.PdfFileReader(pdf_file_obj)
                 for page in range(0,pdf_reader.numPages):
@@ -84,20 +83,20 @@ def get_all_pdf_files():
                     uprint(pdf_text)
                     print ('--------------')
                     assert False
-            #use_PyPDF2()
 
             def get_page_size(pdf):
                 pdf_file_obj = open(os.path.join(dirpath, pdf), 'rb')
                 pdf_reader = PyPDF2.PdfFileReader(pdf_file_obj)
                 page_size = pdf_reader.getPage(0).mediaBox
+                print (page_size)
                 return page_size
 
             page_size = get_page_size(pdf)
-            print (page_size)
 
-            # using minecart below which seems to be able to split PDFs into certain
-            # vectors or boxes. Might make reading the columns easier.
+            use_PyPDF2(page_size)
+
 
 home_dir = os.getcwd()
 os.chdir('ads')
+
 get_all_pdf_files()
