@@ -4,6 +4,13 @@ import sys
 import PyPDF2
 from PIL import Image
 import glob
+import io
+
+from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+from pdfminer.converter import TextConverter
+from pdfminer.layout import LAParams
+from pdfminer.pdfpage import PDFPage
+
 
 #TODO: Add in image recognition to recognize images using TensorFlow
 # https://towardsdatascience.com/tensorflow-image-recognition-python-api-e35f7d412a70
@@ -84,6 +91,7 @@ def get_all_pdf_files():
                     print ('--------------')
                     assert False
 
+            # get the size of the PDF
             def get_page_size(pdf):
                 pdf_file_obj = open(os.path.join(dirpath, pdf), 'rb')
                 pdf_reader = PyPDF2.PdfFileReader(pdf_file_obj)
@@ -91,9 +99,38 @@ def get_all_pdf_files():
                 print (page_size)
                 return page_size
 
-            page_size = get_page_size(pdf)
+            #try to use pdfminer.six to get text
+            def use_pdfminer():
+                rsrcmgr = PDFResourceManager()
+                retstr = io.StringIO()
+                codec = 'utf-8'
+                laparams = LAParams()
+                device = TextConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+                fp = open(os.path.join(dirpath, pdf), 'rb')
+                interpreter = PDFPageInterpreter(rsrcmgr, device)
+                password = ""
+                maxpages = 0
+                caching = True
+                pagenos = set()
 
-            use_PyPDF2(page_size)
+                for page in PDFPage.get_pages(fp, pagenos, maxpages=maxpages,
+                                              password=password,
+                                              caching=caching,
+                                              check_extractable=True):
+                    interpreter.process_page(page)
+
+                text = retstr.getvalue()
+
+                fp.close()
+                device.close()
+                retstr.close()
+                return text
+
+            #page_size = get_page_size(pdf)
+            #use_PyPDF2(page_size)
+            pdfminer_text = use_pdfminer()
+            uprint (pdfminer_text)
+            assert False
 
 
 home_dir = os.getcwd()
