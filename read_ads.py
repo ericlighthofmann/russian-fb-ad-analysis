@@ -5,12 +5,12 @@ import PyPDF2
 from PIL import Image
 import glob
 import io
+from tqdm import tqdm
 
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfpage import PDFPage
-
 
 #TODO: Add in image recognition to recognize images using TensorFlow
 # https://towardsdatascience.com/tensorflow-image-recognition-python-api-e35f7d412a70
@@ -61,25 +61,22 @@ def extract_image(pageObj):
                 img.write(data)
                 img.close()
 
+master_pdf_list = []
+
 def get_all_pdf_files():
     for (dirpath, dirnames, filenames) in os.walk(os.getcwd()):
+
         os.chdir(dirpath)
         all_pdfs = glob.glob('*.pdf')
-        for pdf in all_pdfs:
-            pdf_dict = {
-            'ad_id': '',
-            'ad_text': '',
-            'ad_landing_page': '',
-            'ad_targeting': '',
-            'ad_impressions': '',
-            'ad_clicks': '',
-            'ad_spend': '',
-            'ad_creation_date': '',
-            }
-            #print (os.path.join(dirpath, pdf))
 
+        for pdf in tqdm(all_pdfs):
+
+            #skip big files for testing purposes
+            if os.path.getsize(pdf) > 3000000:
+                continue
             # using PyPDF2 below, reads down the first column, then down the next column
             # this makes it hard to split words on
+            # @fold
             def use_PyPDF2(page_size):
                 pdf_file_obj = open(os.path.join(dirpath, pdf), 'rb')
                 pdf_reader = PyPDF2.PdfFileReader(pdf_file_obj)
@@ -92,6 +89,7 @@ def get_all_pdf_files():
                     assert False
 
             # get the size of the PDF
+            # @fold
             def get_page_size(pdf):
                 pdf_file_obj = open(os.path.join(dirpath, pdf), 'rb')
                 pdf_reader = PyPDF2.PdfFileReader(pdf_file_obj)
@@ -100,38 +98,66 @@ def get_all_pdf_files():
                 return page_size
 
             #try to use pdfminer.six to get text
-            def use_pdfminer():
+            # @fold
+            def use_pdfminer(pdf):
                 rsrcmgr = PDFResourceManager()
                 retstr = io.StringIO()
                 codec = 'utf-8'
                 laparams = LAParams()
                 device = TextConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
-                fp = open(os.path.join(dirpath, pdf), 'rb')
+                fp = open(pdf, 'rb')
                 interpreter = PDFPageInterpreter(rsrcmgr, device)
-                password = ""
                 maxpages = 0
                 caching = True
                 pagenos = set()
 
                 for page in PDFPage.get_pages(fp, pagenos, maxpages=maxpages,
-                                              password=password,
                                               caching=caching,
                                               check_extractable=True):
                     interpreter.process_page(page)
 
                 text = retstr.getvalue()
-
                 fp.close()
                 device.close()
                 retstr.close()
                 return text
 
-            #page_size = get_page_size(pdf)
-            #use_PyPDF2(page_size)
-            pdfminer_text = use_pdfminer()
-            uprint (pdfminer_text)
-            assert False
+            pdfminer_text = use_pdfminer(pdf)
+            pdfminer_text = pdfminer_text.split('\n')
+            pdfminer_text = [x for x in pdfminer_text if x != '']
+            ad_targeting = ''
+            for idx, p in enumerate(pdfminer_text):
+                if p == 'Ad ID':
+                    ad_id = pdfminer_text[idx+1]
+                elif p == 'Ad Text':
+                    ad_text = pdfminer_text[idx+1]
+                elif p == 'Ad Landing Page':
+                    ad_landing_page = pdfminer_text[idx+1].replace(' ','')
+                elif p == 'Ad Targeting':
+                    for sub_p in pdfminer_text[idx+1:]:
+                        if sub_p != 'Ad Impressions':
+                            ad_targeting += (' ' + sub_p)
+                        else:
+                            break
+                elif p == 'Ad Impressions':
+                    ad_impressions = pdfminer_text[idx+1]
+                elif p == 'Ad Spend':
+                    ad_spend = pdfminer_text[idx+1]
+                elif p == 'Ad Creation Date':
+                    ad_creation_date = pdfminer_text[idx+1]
 
+
+            master_pdf_list.append(
+                {
+                    'ad_id': ad_id,
+                    'ad_text': ad_text,
+                    'ad_landing_page': ad_landing_page,
+                    'ad_targeting': ad_targeting,
+                    'ad_impressions': ad_impressions,
+                    'ad_spend': ad_spend,
+                    'ad_creation_date': ad_creation_date
+                }
+            )
 
 home_dir = os.getcwd()
 os.chdir('ads')
