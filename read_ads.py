@@ -6,6 +6,7 @@ from PIL import Image
 import glob
 import io
 from tqdm import tqdm
+import struct
 
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
@@ -17,6 +18,8 @@ from pdfminer.pdfpage import PDFPage
 
 #TODO: Figure out how to parse the data correctly and add the data into a Postgres database
 #using Django
+
+testing = False
 
 # @fold
 def uprint(*objects, sep=' ', end='\n', file=sys.stdout):
@@ -30,14 +33,14 @@ def uprint(*objects, sep=' ', end='\n', file=sys.stdout):
         print(*map(f, objects), sep=sep, end=end, file=file)
 
 # @fold
-def extract_image(pageObj):
+def extract_image(pdf, pageObj):
 
     '''
-    Extracts the fb ad image from each of the PDFs and saves it as a .png file. Need to change
-    the save_folder...maybe by where the PDF itself is saved.
+    Extracts the fb ad image from each of the PDFs and saves it as a .png file. Decent accuracy...
+    maybe like 80%? 20% of the images come out with black bars.
     '''
 
-    save_folder = 'C:/users/ehofmann/desktop/'
+    save_folder = os.path.join(home_dir, 'images/'+pdf)
     xObject = pageObj['/Resources']['/XObject'].getObject()
 
     for obj in xObject:
@@ -72,21 +75,23 @@ def get_all_pdf_files():
         for pdf in tqdm(all_pdfs):
 
             #skip big files for testing purposes
-            if os.path.getsize(pdf) > 3000000:
-                continue
+            if testing:
+                if os.path.getsize(pdf) > 3000000:
+                    continue
             # using PyPDF2 below, reads down the first column, then down the next column
             # this makes it hard to split words on
             # @fold
-            def use_PyPDF2(page_size):
+            def get_image_using_pypdf2(dirpath, pdf):
                 pdf_file_obj = open(os.path.join(dirpath, pdf), 'rb')
                 pdf_reader = PyPDF2.PdfFileReader(pdf_file_obj)
-                for page in range(0,pdf_reader.numPages):
-                    page_obj = pdf_reader.getPage(page)
-                    pdf_text = page_obj.extractText() + '\n'
-                    pdf_text = " ".join(pdf_text.replace(u"\xa0", " ").strip().split())
-                    uprint(pdf_text)
-                    print ('--------------')
-                    assert False
+                try:
+                    pypdf2_page_obj = pdf_reader.getPage(1)
+                    return pypdf2_page_obj
+                except IndexError:
+                    return None
+
+            pypdf2_page_obj = get_image_using_pypdf2(dirpath, pdf)
+            if pypdf2_page_obj != None: extract_image(pdf, pypdf2_page_obj)
 
             # get the size of the PDF
             # @fold
